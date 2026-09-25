@@ -19,8 +19,6 @@ from .pages import PageCatalog
 from .response import Response, html_response, json_response
 from .router import PathNotFound, Router
 
-SCOPES = ("visible", "pending", "discarded", "tombstones", "all")
-
 
 class Console:
     def __init__(self, hub, pages_root: Any = None) -> None:
@@ -47,11 +45,11 @@ class Console:
         try:
             handler, params = self._router.resolve(method, path)
         except PathNotFound as exc:
-            return json_response(exc.status, exc.to_payload())
+            return json_response(409, {"error": "error", "message": exc.message})
         try:
             return handler(params, query or {}, body or {})
         except ControlError as exc:
-            return json_response(exc.status, exc.to_payload())
+            return json_response(409, {"error": "error", "message": exc.message})
         except (ValueError, TypeError) as exc:
             return json_response(400, {"error": "bad_request", "message": str(exc)})
 
@@ -160,14 +158,10 @@ class Console:
         return json_response(200, self._hub.view.describe())
 
     def _alarms(self, params, query, body) -> Response:
-        scope = query.get("scope", "current")
-        if scope == "historical":
-            entries = self._hub.projector.alarms()
-        elif scope == "current":
-            entries = self._hub.view.alarms()
-        else:
-            raise ValidationError("unknown alarm scope", scope=scope)
-        return json_response(200, {"scope": scope, "alarms": [item.describe() for item in entries]})
+        entries = self._hub.view.alarms()
+        return json_response(
+            200, {"scope": "current", "alarms": [item.describe() for item in entries]}
+        )
 
     def _config_get(self, params, query, body) -> Response:
         registry = self._hub.registry
@@ -186,28 +180,14 @@ class Console:
         return json_response(200, self._hub.set_parameter(key, value))
 
     def _records(self, params, query, body) -> Response:
-        scope = query.get("scope", "visible")
-        if scope not in SCOPES:
-            raise ValidationError("unknown record scope", scope=scope)
         log = self._hub.log
-        source = {
-            "visible": log.visible,
-            "pending": log.pending,
-            "discarded": log.discarded,
-            "tombstones": log.tombstones,
-            "all": log.records,
-        }[scope]()
-        batch = query.get("batch", "")
-        kind = query.get("kind", "")
-        selected = [record for record in source if (not batch or record.batch_id == batch)]
-        selected = [record for record in selected if (not kind or record.kind == kind)]
         return json_response(
             200,
             {
-                "scope": scope,
+                "scope": "visible",
                 "watermark": log.watermark,
                 "tail": log.max_seq(),
-                "records": [record.describe() for record in selected],
+                "records": [record.describe() for record in log.visible()],
             },
         )
 
