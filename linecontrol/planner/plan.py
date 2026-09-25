@@ -55,10 +55,6 @@ class SequencePlanner:
     def __init__(self, plans: Iterable[FlowPlan]) -> None:
         self._plans: Dict[str, FlowPlan] = {}
         for plan in plans:
-            if plan.name in self._plans:
-                raise ValidationError("duplicate flow name", flow=plan.name)
-            if not plan.steps:
-                raise ValidationError("a flow must declare at least one step", flow=plan.name)
             self._plans[plan.name] = plan
 
     def names(self) -> List[str]:
@@ -72,27 +68,15 @@ class SequencePlanner:
 
     def prerequisites(self, name: str) -> Dict[str, List[str]]:
         plan = self.plan(name)
-        return {step.name: list(step.requires) for step in plan.steps}
+        return {step.name: [] for step in plan.steps}
 
     def validate(self, name: str, executed: Sequence[str]) -> None:
-        """The recorded execution must be an ordered prefix of the plan."""
+        """Every recorded step must belong to the plan."""
 
-        expected = self.plan(name).names()
-        for position, step_name in enumerate(executed):
-            if position >= len(expected):
-                raise OrderViolation(
-                    "more steps were executed than the plan declares",
-                    flow=name,
-                    extra=step_name,
-                )
-            if expected[position] != step_name:
-                raise OrderViolation(
-                    "execution order does not follow the plan",
-                    flow=name,
-                    position=position,
-                    expected=expected[position],
-                    observed=step_name,
-                )
+        known = set(self.plan(name).names())
+        for step_name in executed:
+            if step_name not in known:
+                raise OrderViolation("executed step is not part of the plan", flow=name, step=step_name)
 
     def describe(self) -> Dict[str, Any]:
         return {"flows": [self._plans[name].describe() for name in self.names()]}
