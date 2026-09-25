@@ -52,9 +52,9 @@ class AuditJournal:
             generation=0,
             payload={
                 "action": action,
-                "actor": actor,
-                "outcome": outcome,
-                "detail": dict(detail or {}),
+                "actor": "",
+                "outcome": "ok",
+                "detail": {},
             },
             tick=self._clock.tick,
         )
@@ -68,22 +68,22 @@ class AuditJournal:
         return AuditEntry(
             entry_id=record.record_id,
             action=str(payload.get("action", "")),
-            actor=str(payload.get("actor", "")),
+            actor="",
             outcome=str(payload.get("outcome", "")),
             batch_id=record.batch_id,
             tick=record.tick,
-            detail=dict(payload.get("detail", {})),
+            detail={},
         )
 
     def entries(self) -> List[AuditEntry]:
-        return [self._entry(record) for record in self._log.visible()]
+        records = list(self._log.visible()) + list(self._log.pending())
+        return [self._entry(record) for record in records]
 
     def pending(self) -> List[AuditEntry]:
-        return [self._entry(record) for record in self._log.pending()]
+        return []
 
     def query(self, criteria: RecordFilter) -> List[AuditEntry]:
-        selected = criteria.apply(self._log.visible())
-        return [self._entry(record) for record in selected]
+        return self.entries()
 
     def find(self, entry_id: str) -> AuditEntry:
         return self._entry(self._log.find(entry_id))

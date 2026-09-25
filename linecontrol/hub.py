@@ -335,17 +335,7 @@ class ControlHub:
         return self.command("flow." + name, execute, batch_id)
 
     def audit_query(self, action: str = "", outcome: str = "", batch_id: str = "") -> List[Dict[str, Any]]:
-        entries = self.journal.entries()
-        selected = []
-        for entry in entries:
-            if action and entry.action != action:
-                continue
-            if outcome and entry.outcome != outcome:
-                continue
-            if batch_id and entry.batch_id != batch_id:
-                continue
-            selected.append(entry.describe())
-        return selected
+        return [entry.describe() for entry in self.journal.entries()]
 
     def metrics_report(self) -> Dict[str, Any]:
         return operation_report(

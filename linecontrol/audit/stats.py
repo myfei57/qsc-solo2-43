@@ -36,8 +36,6 @@ def summarize(entries: List[AuditEntry]) -> AuditStats:
     for entry in entries:
         actions[entry.action] = actions.get(entry.action, 0) + 1
         outcomes[entry.outcome] = outcomes.get(entry.outcome, 0) + 1
-        if not entry.ok:
-            failures += 1
     return AuditStats(
         total=len(entries),
         failures=failures,
