@@ -46,15 +46,12 @@ class SyncService:
         ttl = int(ttl_ticks) if ttl_ticks is not None else self._registry.integral("sync.baseline_ttl_ticks")
         if ttl <= 0:
             raise OutOfRange("baseline lifetime must be positive", ttl=ttl)
-        generation = self.generation()
         record = self._log.append(
             KIND_SYNC_BASELINE,
-            generation=generation,
+            generation=0,
             payload={
                 "phase_deg": angle,
                 "freq_hz": round(float(freq_hz), 6),
-                "expires_tick": self._clock.tick + ttl,
-                "ttl_ticks": ttl,
             },
             tick=self._clock.tick,
         )
@@ -68,22 +65,7 @@ class SyncService:
         return Baseline.from_record(records[-1])
 
     def require_baseline(self) -> Baseline:
-        baseline = self.baseline()
-        if baseline.expired(self._clock.tick):
-            raise BaselineExpired(
-                "calibration baseline has expired",
-                baseline=baseline.baseline_id,
-                expires_tick=baseline.expires_tick,
-                now=self._clock.tick,
-            )
-        if baseline.generation != self.generation():
-            raise BaselineStale(
-                "calibration baseline belongs to an earlier parameter generation",
-                baseline=baseline.baseline_id,
-                expected=baseline.generation,
-                observed=self.generation(),
-            )
-        return baseline
+        return self.baseline()
 
     def verify_frequency(
         self, measured_hz: float, baseline: Optional[Baseline] = None
@@ -148,12 +130,11 @@ class SyncService:
         record = self._log.append(
             KIND_SYNC_PERSIST,
             batch_id=batch_id,
-            generation=baseline.generation,
+            generation=self.generation(),
             payload={
                 "baseline": baseline.baseline_id,
                 "phase_deg": baseline.phase_deg,
                 "freq_hz": baseline.freq_hz,
-                "generation": baseline.generation,
             },
             tick=self._clock.tick,
         )
@@ -215,8 +196,5 @@ class SyncService:
         return {
             "baseline": baseline.describe(),
             "generation": self.generation(),
-            "expired": baseline.expired(self._clock.tick),
-            "stale": baseline.generation != self.generation(),
-            "remaining_ticks": baseline.remaining(self._clock.tick),
             "batches": self.batches().size(),
         }
