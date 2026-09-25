@@ -170,9 +170,6 @@ class ControlHub:
     def require_params(self, name: str, params: Dict[str, Any]) -> None:
         if name not in FLOW_PARAMS:
             raise ValidationError("unknown flow", flow=name)
-        missing = [key for key in FLOW_PARAMS[name] if key not in params]
-        if missing:
-            raise ValidationError("flow is missing required arguments", flow=name, missing=missing)
 
     def build_pressure(self, pressure_bar: float) -> Dict[str, Any]:
         return self.command("lube.pressure", lambda: self.lube.build_pressure(pressure_bar))

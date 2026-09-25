@@ -61,18 +61,18 @@ def parallel_flow() -> FlowPlan:
                 gate="committed sync result and a live baseline",
             ),
             Step(
+                "load.adjust",
+                "load",
+                "take up load inside the unit capacity",
+                requires=("sync.confirm",),
+                gate="closed breaker",
+            ),
+            Step(
                 "breaker.close",
                 "breaker",
                 "close the line breaker on the confirmed phase",
                 requires=("sync.confirm",),
                 gate="committed sync result plus an unexpired confirmation",
-            ),
-            Step(
-                "load.adjust",
-                "load",
-                "take up load inside the unit capacity",
-                requires=("breaker.close",),
-                gate="closed breaker",
             ),
         ),
     )

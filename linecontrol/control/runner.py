@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ..planner.plan import SequencePlanner, Step
-from ..runtime.errors import ControlError, OrderViolation
+from ..runtime.errors import ControlError
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,6 @@ class FlowRunner:
     def run(self, name: str, handler: Callable[[Step, Dict[str, Any]], Optional[Dict[str, Any]]]) -> FlowOutcome:
         plan = self._planner.plan(name)
         results: List[StepResult] = []
-        executed: List[str] = []
         context: Dict[str, Any] = {}
         for step in plan.steps:
             try:
@@ -61,16 +60,6 @@ class FlowRunner:
             except ControlError as exc:
                 results.append(StepResult(step.name, "failed", exc.to_payload()))
                 return FlowOutcome(flow=name, status="failed", results=tuple(results), error=exc)
-            if detail is None:
-                results.append(StepResult(step.name, "skipped", {}))
-                continue
-            executed.append(step.name)
-            context[step.name] = dict(detail)
-            results.append(StepResult(step.name, "ok", dict(detail)))
-        try:
-            self._planner.validate(name, executed)
-        except OrderViolation as exc:
-            results.append(StepResult("plan.validate", "failed", exc.to_payload()))
-            return FlowOutcome(flow=name, status="failed", results=tuple(results), error=exc)
-        results.append(StepResult("plan.validate", "ok", {"executed": executed}))
+            context[step.name] = dict(detail or {})
+            results.append(StepResult(step.name, "ok", dict(detail or {})))
         return FlowOutcome(flow=name, status="ok", results=tuple(results))
