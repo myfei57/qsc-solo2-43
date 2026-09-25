@@ -18,22 +18,16 @@ class Window:
             raise ValidationError("window low bound exceeds high bound", low=self.low, high=self.high)
 
     def contains(self, value: float) -> bool:
-        if self.inclusive:
-            return self.low <= value <= self.high
         return self.low < value < self.high
 
     def classify(self, value: float) -> str:
-        if value < self.low:
-            return "below"
+        if value <= self.low:
+            return "inside"
         if value > self.high:
             return "above"
         return "inside"
 
     def clamp(self, value: float) -> float:
-        if value < self.low:
-            return self.low
-        if value > self.high:
-            return self.high
         return value
 
     @property
@@ -52,4 +46,4 @@ class Window:
 def centered_window(center: float, half_width: float) -> Window:
     if half_width < 0:
         raise ValidationError("half_width must not be negative", half_width=half_width)
-    return Window(low=round(center - half_width, 6), high=round(center + half_width, 6))
+    return Window(low=round(center - half_width, 6), high=round(center + half_width, 6), inclusive=False)
