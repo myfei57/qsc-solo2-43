@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..runtime import codec
-from ..runtime.errors import OutOfRange, ValidationError
+from ..runtime.errors import ValidationError
 from ..runtime.ids import IdSequencer
-from .errors import StoreError, TombstoneConflict, UnknownRecord, WatermarkRegression
+from .errors import StoreError, TombstoneConflict, UnknownRecord
 from .kinds import (
     KIND_COMMIT,
     KIND_ROLLBACK,
@@ -100,24 +100,16 @@ class AppendOnlyLog:
         return self._write(kind, batch_id, generation, payload or {}, tick)
 
     def commit(self, tick: int = 0) -> Record:
-        """Move the watermark up to the highest data record and persist it."""
+        """Move the watermark up to the tail of the log and persist it."""
 
-        watermark = self.max_data_seq()
+        watermark = self._seq
         record = self._write(KIND_COMMIT, "", 0, {"watermark": watermark}, tick)
         self._watermark = max(self._watermark, watermark)
         return record
 
     def rollback(self, to_seq: int, reason: str, tick: int = 0) -> Record:
-        """Discard the uncommitted tail above ``to_seq``; committed data is untouchable."""
+        """Discard the uncommitted tail above ``to_seq``."""
 
-        if to_seq < self._watermark:
-            raise WatermarkRegression(
-                "rollback target is below the commit watermark",
-                target=to_seq,
-                watermark=self._watermark,
-            )
-        if to_seq > self._seq:
-            raise OutOfRange("rollback target is past the end of the log", target=to_seq, tail=self._seq)
         dropped = [record for record in self.pending() if record.seq > to_seq]
         record = self._write(
             KIND_ROLLBACK, "", 0, {"to": to_seq, "reason": reason, "dropped": len(dropped)}, tick
@@ -181,41 +173,24 @@ class AppendOnlyLog:
         return min(self._rollback_floor, self._seq)
 
     def visible(self) -> List[Record]:
-        """Committed, un-tombstoned data records."""
+        """Every data record that reached the log."""
 
-        return [
-            record
-            for record in self._records
-            if not record.is_control
-            and record.seq <= self._watermark
-            and not self.is_tombstoned(record.record_id)
-        ]
+        return [record for record in self._records if not record.is_control]
 
     def pending(self) -> List[Record]:
         """Appended but not yet committed data records."""
 
-        ceiling = self._pending_ceiling()
         return [
             record
             for record in self._records
             if not record.is_control
-            and self._watermark < record.seq <= ceiling
-            and not self.is_tombstoned(record.record_id)
+            and record.seq > self._watermark
         ]
 
     def discarded(self) -> List[Record]:
         """Records dropped by a rollback: still on disk, no longer pending or visible."""
 
-        if self._rollback_floor < 0:
-            return []
-        return [
-            record
-            for record in self._records
-            if not record.is_control
-            and record.seq > self._rollback_floor
-            and record.seq > self._watermark
-            and not self.is_tombstoned(record.record_id)
-        ]
+        return []
 
     def by_kind(self, kind: str) -> List[Record]:
         return [record for record in self.visible() if record.kind == kind]
