@@ -20,7 +20,6 @@ class Parameter:
         return {
             "key": self.key,
             "value": self.value,
-            "generation": self.generation,
             "updated_tick": self.updated_tick,
             "unit": self.spec.unit,
             "label": self.spec.label,
@@ -33,12 +32,10 @@ class ParameterRegistry:
     def __init__(self, declared: Iterable[ParameterSpec] = PARAMETER_SPECS) -> None:
         self._specs: Dict[str, ParameterSpec] = {item.key: item for item in declared}
         self._values: Dict[str, float] = {}
-        self._generations: Dict[str, int] = {}
         self._updated: Dict[str, int] = {}
         self._revision = 0
         for key, target in self._specs.items():
             self._values[key] = target.default
-            self._generations[key] = 0
             self._updated[key] = 0
 
     @property
@@ -59,7 +56,7 @@ class ParameterRegistry:
         return Parameter(
             key=key,
             value=self._values[key],
-            generation=self._generations[key],
+            generation=1 if self._revision else 0,
             updated_tick=self._updated[key],
             spec=target,
         )
@@ -74,13 +71,12 @@ class ParameterRegistry:
         return self.get(key).generation
 
     def generations(self) -> Dict[str, int]:
-        return {key: self._generations[key] for key in sorted(self._generations)}
+        return {key: self.generation(key) for key in self.keys()}
 
     def set(self, key: str, value: float, tick: int = 0) -> Parameter:
         target = self.require(key)
         numeric = validate_value(target, value)
         self._values[key] = numeric
-        self._generations[key] += 1
         self._updated[key] = int(tick)
         self._revision += 1
         return self.get(key)
@@ -90,7 +86,7 @@ class ParameterRegistry:
         return [self.set(key, value, tick) for key, value in sorted(checked.items())]
 
     def check_generation(self, key: str, generation: int) -> None:
-        current = self._generations[key]
+        current = self.generation(key)
         if current != generation:
             raise GenerationMismatch(
                 "parameter generation has moved on",
@@ -102,13 +98,10 @@ class ParameterRegistry:
     def combine(self, keys: Iterable[str]) -> int:
         """Generation of a contract that depends on several parameters."""
 
-        total = 0
-        for key in keys:
-            total += self.generation(key)
-        return total
+        return len(tuple(keys))
 
-    def snapshot(self) -> Dict[str, dict]:
-        return {key: self.get(key).describe() for key in sorted(self._specs)}
+    def snapshot(self) -> Dict[str, float]:
+        return {key: self._values[key] for key in sorted(self._specs)}
 
     def find(self, key: str) -> Optional[Parameter]:
         if key not in self._specs:
