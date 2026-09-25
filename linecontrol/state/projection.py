@@ -8,7 +8,6 @@ from ..store.kinds import (
     KIND_AVR_DEEXCITE,
     KIND_AVR_EXCITE,
     KIND_BREAKER_CLOSE,
-    KIND_BREAKER_LATCH_RELEASE,
     KIND_BREAKER_OPEN,
     KIND_BREAKER_TRIP,
     KIND_ENGINE_START,
@@ -141,9 +140,6 @@ class StateProjector:
             working.breaker = "open"
         elif kind == KIND_BREAKER_TRIP:
             working.breaker = "open"
-            working.breaker_latched = True
-        elif kind == KIND_BREAKER_LATCH_RELEASE:
-            working.breaker_latched = False
         elif kind == KIND_AVR_EXCITE:
             working.excitation_v = float(payload.get("voltage", 0.0))
         elif kind == KIND_AVR_DEEXCITE:

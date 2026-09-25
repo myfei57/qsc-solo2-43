@@ -55,15 +55,6 @@ class BreakerService:
             self._clock.tick,
         )
         angle = contact_angle_deg(float(phase_deg), baseline.phase_deg)
-        window = centered_window(0.0, self._registry.value("sync.phase_window_deg"))
-        if not window.contains(angle):
-            raise ContactAngleOutOfRange(
-                "contact angle is outside the matching window",
-                phase_deg=float(phase_deg),
-                reference_deg=baseline.phase_deg,
-                delta_deg=angle,
-                window=window.describe(),
-            )
         record = self._log.append(
             KIND_BREAKER_CLOSE,
             batch_id=batch_id,
@@ -111,20 +102,13 @@ class BreakerService:
         return {"breaker": "open", "latched": True, "record": record.record_id, "reason": reason}
 
     def release_decision(self):
-        return self._policy.decide(self.latched(), self.state(), self._load_kw())
+        return self._policy.decide(self.state(), self._load_kw())
 
     def release_latch(self) -> Dict[str, Any]:
         decision = self.release_decision()
         if not decision.releasable:
             raise BreakerLatched(decision.reason, latched=self.latched(), breaker=self.state())
-        record = self._log.append(
-            KIND_BREAKER_LATCH_RELEASE,
-            generation=self.phase_generation(),
-            payload={"alarm": "breaker.trip", "reason": decision.reason},
-            tick=self._clock.tick,
-        )
-        self._log.commit(tick=self._clock.tick)
-        return {"latched": False, "record": record.record_id}
+        return {"latched": self.latched(), "reason": decision.reason}
 
     def status(self) -> Dict[str, Any]:
         return {

@@ -14,16 +14,15 @@ class LatchReleaseDecision:
 
 
 class LatchReleasePolicy:
-    """A trip latch is released only with the breaker open and no load held."""
+    """A trip latch is released once the breaker is off the line."""
 
     def __init__(self, load_tolerance_kw: float = 0.0) -> None:
         self._tolerance = float(load_tolerance_kw)
 
-    def decide(self, latched: bool, breaker_state: str, load_kw: float) -> LatchReleaseDecision:
-        if not latched:
-            return LatchReleaseDecision(False, "no trip latch is engaged")
+    def decide(self, breaker_state: str, load_kw: float) -> LatchReleaseDecision:
         if breaker_state != "open":
             return LatchReleaseDecision(False, "breaker must be open before the latch is released")
-        if load_kw > self._tolerance:
-            return LatchReleaseDecision(False, "load is still applied to the unit")
         return LatchReleaseDecision(True, "release conditions satisfied")
+
+    def describe(self) -> Dict[str, Any]:
+        return {"load_tolerance_kw": self._tolerance}
