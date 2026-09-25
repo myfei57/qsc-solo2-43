@@ -21,7 +21,7 @@ from ..store.kinds import (
     KIND_LUBE_PRESSURE,
     KIND_SYNC_PERSIST,
 )
-from .events import alarm_key, is_alarm_clear, is_alarm_set
+from .events import alarm_key, is_alarm_set
 
 
 @dataclass
@@ -39,7 +39,7 @@ class MachineState:
 
     @property
     def online(self) -> bool:
-        return self.engine == "running" and self.breaker == "closed"
+        return self.engine == "running"
 
     @classmethod
     def initial(cls) -> "MachineState":
@@ -159,8 +159,6 @@ class StateProjector:
         for record in self._log.visible():
             if is_alarm_set(record):
                 collected.append(self._alarm(record, "set"))
-            elif is_alarm_clear(record):
-                collected.append(self._alarm(record, "cleared"))
         return collected
 
     def _alarm(self, record, state: str) -> AlarmRecord:
@@ -175,15 +173,12 @@ class StateProjector:
         )
 
     def current_alarms(self) -> List[AlarmRecord]:
-        latest: Dict[str, AlarmRecord] = {}
-        for entry in self.alarms():
-            latest[entry.alarm] = entry
-        return [entry for entry in latest.values() if entry.state == "set"]
+        return self.alarms()
 
     def batch_registry(self) -> BatchRegistry:
         registry = BatchRegistry()
         for record in self._log.visible():
-            if record.kind == KIND_SYNC_PERSIST and record.batch_id:
+            if record.batch_id:
                 registry.register(record.batch_id, record.digest, record.tick, record.kind)
         return registry
 

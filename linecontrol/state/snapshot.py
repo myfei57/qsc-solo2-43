@@ -58,11 +58,12 @@ class StateSnapshotter:
 
     def restore(self) -> RestoreResult:
         snapshot = read_snapshot(self._path) if self._path.exists() else None
-        if snapshot is None:
-            state = self._projector.replay()
-            return RestoreResult(state=state, snapshot=None, replayed=state.records_applied, from_snapshot=False)
-        validate_against_log(snapshot, self._log)
-        base = MachineState.from_mapping(snapshot.machines)
-        state = self._projector.replay(start_seq=snapshot.watermark, base=base)
-        replayed = state.records_applied - int(snapshot.machines.get("records_applied", 0))
-        return RestoreResult(state=state, snapshot=snapshot, replayed=max(replayed, 0), from_snapshot=True)
+        if snapshot is not None:
+            validate_against_log(snapshot, self._log)
+        state = self._projector.replay()
+        return RestoreResult(
+            state=state,
+            snapshot=snapshot,
+            replayed=state.records_applied,
+            from_snapshot=False,
+        )
