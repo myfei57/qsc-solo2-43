@@ -7,7 +7,6 @@ KIND_SYNC_PERSIST = "sync.persist"
 KIND_SYNC_COMMIT = "sync.commit"
 KIND_ENGINE_START = "engine.start"
 KIND_ENGINE_STOP = "engine.stop"
-KIND_ENGINE_CRANK = "engine.crank"
 KIND_LUBE_PRESSURE = "lube.pressure"
 KIND_LUBE_LATCH_SET = "lube.latch.set"
 KIND_LUBE_LATCH_CLEAR = "lube.latch.clear"
@@ -37,7 +36,6 @@ DATA_KINDS = (
     KIND_SYNC_COMMIT,
     KIND_ENGINE_START,
     KIND_ENGINE_STOP,
-    KIND_ENGINE_CRANK,
     KIND_LUBE_PRESSURE,
     KIND_LUBE_LATCH_SET,
     KIND_LUBE_LATCH_CLEAR,

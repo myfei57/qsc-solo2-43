@@ -12,7 +12,6 @@ from ..store.kinds import (
     KIND_BREAKER_OPEN,
     KIND_BREAKER_TRIP,
     KIND_ENGINE_START,
-    KIND_ENGINE_CRANK,
     KIND_ENGINE_STOP,
     KIND_GOV_ADJUST,
     KIND_LOAD_ADJUST,
@@ -125,8 +124,6 @@ class StateProjector:
         kind = record.kind
         if kind == KIND_ENGINE_START:
             working.engine = "running"
-        elif kind == KIND_ENGINE_CRANK:
-            working.engine = "cranking"
         elif kind == KIND_ENGINE_STOP:
             working.engine = "stopped"
         elif kind == KIND_LUBE_PRESSURE:

@@ -4,9 +4,9 @@ from typing import Any, Dict, List
 
 from ..ns.units import hz_to_rpm
 from ..runtime.errors import OrderViolation
-from ..store.kinds import KIND_ENGINE_CRANK, KIND_ENGINE_START, KIND_ENGINE_STOP
+from ..store.kinds import KIND_ENGINE_START, KIND_ENGINE_STOP
 from .errors import EngineGateClosed, EngineNotRunning
-from .gate import GateCheck, StartGate
+from .gate import blocker, evaluate
 
 
 class EngineService:
@@ -16,52 +16,36 @@ class EngineService:
         self._registry = registry
         self._view = view
         self._lube = lube
-        self._gate = StartGate()
 
     def state(self) -> str:
         return self._view.engine()
 
-    def cranked(self) -> bool:
-        return self.state() == "cranking"
-
     def running(self) -> bool:
         return self.state() == "running"
 
-    def checks(self) -> List[GateCheck]:
-        return self._gate.evaluate(
+    def checks(self) -> List[Dict[str, Any]]:
+        return evaluate(
             pressure_bar=self._lube.pressure_bar(),
             established_bar=self._lube.established_threshold(),
             latched=self._lube.latch_engaged(),
-            engine_state=self.state(),
-            cranked=self.cranked(),
         )
 
     def gate_report(self) -> Dict[str, Any]:
-        return self._gate.describe(self.checks())
-
-    def _require_open(self, checks: List[GateCheck]) -> None:
-        blocker = self._gate.first_blocker(checks)
-        if blocker is not None:
-            raise EngineGateClosed(blocker.name, gate=blocker.name, detail=blocker.detail)
+        checks = self.checks()
+        stopped = blocker(checks)
+        return {"checks": checks, "open": stopped["passed"], "blocked_by": stopped["gate"]}
 
     def crank(self) -> Dict[str, Any]:
         if self.running():
             raise OrderViolation("prime mover is already running")
-        checks = self.checks()[:2]
-        self._require_open(checks)
-        record = self._log.append(
-            KIND_ENGINE_CRANK,
-            generation=self._registry.combine(("engine.crank_window_ticks",)),
-            payload={"pressure_bar": self._lube.pressure_bar()},
-            tick=self._clock.tick,
-        )
-        self._log.commit(tick=self._clock.tick)
-        return {"engine": "cranking", "record": record.record_id}
+        return {"engine": self.state()}
 
     def start(self) -> Dict[str, Any]:
         if self.running():
             raise OrderViolation("prime mover is already running")
-        self._require_open(self.checks())
+        stopped = blocker(self.checks())
+        if not stopped["passed"]:
+            raise EngineGateClosed(stopped["gate"], gate=stopped["gate"], detail=stopped["detail"])
         rpm = hz_to_rpm(self._registry.value("gov.target_hz"))
         record = self._log.append(
             KIND_ENGINE_START,
