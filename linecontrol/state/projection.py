@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional
 
 from ..rules.uniqueness import BatchRegistry
 from ..store.kinds import (
-    KIND_AVR_DEEXCITE,
-    KIND_AVR_EXCITE,
     KIND_BREAKER_CLOSE,
     KIND_BREAKER_LATCH_RELEASE,
     KIND_BREAKER_OPEN,
@@ -144,10 +142,6 @@ class StateProjector:
             working.breaker_latched = True
         elif kind == KIND_BREAKER_LATCH_RELEASE:
             working.breaker_latched = False
-        elif kind == KIND_AVR_EXCITE:
-            working.excitation_v = float(payload.get("voltage", 0.0))
-        elif kind == KIND_AVR_DEEXCITE:
-            working.excitation_v = 0.0
         elif kind == KIND_LOAD_ADJUST:
             working.load_kw = float(payload.get("kw", 0.0))
         elif kind == KIND_GOV_ADJUST:

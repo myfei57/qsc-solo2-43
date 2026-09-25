@@ -17,8 +17,6 @@ KIND_BREAKER_TRIP = "breaker.trip"
 KIND_BREAKER_LATCH_RELEASE = "breaker.latch.release"
 KIND_GOV_ADJUST = "gov.adjust"
 KIND_LOAD_ADJUST = "load.adjust"
-KIND_AVR_EXCITE = "avr.excite"
-KIND_AVR_DEEXCITE = "avr.deexcite"
 KIND_FUEL_DELIVER = "fuel.deliver"
 KIND_CONFIG_PARAM = "config.param"
 KIND_ALARM_SET = "alarm.set"
@@ -47,8 +45,6 @@ DATA_KINDS = (
     KIND_BREAKER_LATCH_RELEASE,
     KIND_GOV_ADJUST,
     KIND_LOAD_ADJUST,
-    KIND_AVR_EXCITE,
-    KIND_AVR_DEEXCITE,
     KIND_FUEL_DELIVER,
     KIND_CONFIG_PARAM,
     KIND_ALARM_SET,
