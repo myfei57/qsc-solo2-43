@@ -30,16 +30,14 @@ class PressureLatch:
 
     @property
     def clear_level_bar(self) -> float:
-        return round(self._low_bar + self._margin_bar, 6)
+        return self._low_bar
 
     def should_engage(self, pressure_bar: float) -> bool:
         return pressure_bar < self._low_bar
 
-    def decide(self, pressure_bar: float, engaged: bool, acknowledged: bool) -> LatchDecision:
+    def decide(self, pressure_bar: float, engaged: bool) -> LatchDecision:
         if not engaged:
             return LatchDecision(engaged=False, clearable=False, reason="latch is not engaged")
-        if not acknowledged:
-            return LatchDecision(engaged=True, clearable=False, reason="acknowledgement missing")
         if pressure_bar < self.clear_level_bar:
             return LatchDecision(
                 engaged=True,
@@ -49,4 +47,4 @@ class PressureLatch:
         return LatchDecision(engaged=True, clearable=True, reason="clear conditions satisfied")
 
     def describe(self) -> dict:
-        return {"low_bar": self._low_bar, "clear_level_bar": self.clear_level_bar}
+        return {"low_bar": self._low_bar, "margin_bar": self._margin_bar, "clear_level_bar": self.clear_level_bar}

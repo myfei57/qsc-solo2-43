@@ -16,12 +16,12 @@ from ..store.kinds import (
     KIND_ENGINE_STOP,
     KIND_GOV_ADJUST,
     KIND_LOAD_ADJUST,
-    KIND_LUBE_LATCH_CLEAR,
-    KIND_LUBE_LATCH_SET,
     KIND_LUBE_PRESSURE,
     KIND_SYNC_PERSIST,
 )
 from .events import alarm_key, is_alarm_clear, is_alarm_set
+
+LOW_PRESSURE_BAR = 1.2
 
 
 @dataclass
@@ -131,10 +131,7 @@ class StateProjector:
             working.engine = "stopped"
         elif kind == KIND_LUBE_PRESSURE:
             working.lube_pressure_bar = float(payload.get("bar", 0.0))
-        elif kind == KIND_LUBE_LATCH_SET:
-            working.lube_latched = True
-        elif kind == KIND_LUBE_LATCH_CLEAR:
-            working.lube_latched = False
+            working.lube_latched = working.lube_pressure_bar < LOW_PRESSURE_BAR
         elif kind == KIND_BREAKER_CLOSE:
             working.breaker = "closed"
         elif kind == KIND_BREAKER_OPEN:

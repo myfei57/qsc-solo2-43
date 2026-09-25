@@ -3,13 +3,11 @@
 from typing import Any, Dict, Optional
 
 from ..runtime.errors import OutOfRange
-from ..store.kinds import KIND_LUBE_LATCH_CLEAR, KIND_LUBE_LATCH_SET, KIND_LUBE_PRESSURE
+from ..store.kinds import KIND_LUBE_PRESSURE
 from ..ns.units import bar_to_kpa
-from .errors import LatchStillEngaged
 from .latch import PressureLatch
 
 MAX_PRESSURE_BAR = 12.0
-ALARM_NAME = "lube.low_pressure"
 
 
 class LubeService:
@@ -62,18 +60,8 @@ class LubeService:
             "record": record.record_id,
             "latch": "clear",
         }
-        if self.latch().should_engage(value) and not self.latch_engaged():
-            self._log.append(
-                KIND_LUBE_LATCH_SET,
-                generation=self._registry.combine(("lube.low_pressure_bar",)),
-                payload={"alarm": ALARM_NAME, "bar": round(value, 6)},
-                tick=self._clock.tick,
-            )
-            self._ack_tick = None
-            result["latch"] = "engaged"
-        elif self.latch_engaged():
-            result["latch"] = "engaged"
         self._log.commit(tick=self._clock.tick)
+        result["latch"] = "engaged" if self.latch_engaged() else "clear"
         return result
 
     def acknowledge(self) -> Dict[str, Any]:
@@ -81,20 +69,11 @@ class LubeService:
         return {"acknowledged_tick": self._ack_tick, "pressure_bar": self.pressure_bar()}
 
     def clear_latch(self) -> Dict[str, Any]:
-        if not self.latch_engaged():
-            raise LatchStillEngaged("no oil pressure latch is engaged")
-        decision = self.latch().decide(self.pressure_bar(), True, self.acknowledged())
-        if not decision.clearable:
-            raise LatchStillEngaged(decision.reason, pressure_bar=self.pressure_bar())
-        record = self._log.append(
-            KIND_LUBE_LATCH_CLEAR,
-            generation=self._registry.combine(("lube.low_pressure_bar",)),
-            payload={"alarm": ALARM_NAME, "bar": self.pressure_bar()},
-            tick=self._clock.tick,
-        )
-        self._log.commit(tick=self._clock.tick)
-        self._ack_tick = None
-        return {"latch": "clear", "record": record.record_id}
+        self._ack_tick = self._clock.tick
+        return {
+            "latch": "engaged" if self.latch_engaged() else "clear",
+            "pressure_bar": self.pressure_bar(),
+        }
 
     def status(self) -> Dict[str, Any]:
         latch = self.latch()
@@ -107,5 +86,5 @@ class LubeService:
             "established": self.established(),
             "latched": self.latch_engaged(),
             "acknowledged": self.acknowledged(),
-            "decision": latch.decide(self.pressure_bar(), self.latch_engaged(), self.acknowledged()).describe(),
+            "decision": latch.decide(self.pressure_bar(), self.latch_engaged()).describe(),
         }
